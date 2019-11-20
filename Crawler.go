@@ -28,12 +28,12 @@ type Crawler struct {
 func NewCrawler(cID int, cLog *logrus.Logger, cHTTPClient *http.Client) *Crawler {
 	// Create a default logger if one was not provided
 	if cLog == nil {
-		cLog := logrus.New()
+		cLog = logrus.New()
 	}
 
 	// Create a default client if none were passed
 	if cHTTPClient == nil {
-		cHTTPClient := &http.Client{}
+		cHTTPClient = &http.Client{}
 	}
 
 	// Return the final crawler
@@ -55,26 +55,26 @@ func (c *Crawler) CrawlWebpage(url string) ([]string, error) {
 	// 1. GET the web page and if we cannot connect return an error.
 	resp, err := c.httpClient.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting webpage %s, due to %w.\n", url, err)
+		return []string{}, fmt.Errorf("error getting webpage %v, due to %w", url, err)
 	}
 
 	// 2. If the status is not 2XX return an error.
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		return []string{}, fmt.Errorf("Status Code Not Acceptable. Expecting 2XX, got %d.\n", resp.StatusCode)
+		return []string{}, fmt.Errorf("status Code Not Acceptable. expecting 2XX, got %d", resp.StatusCode)
 	}
 
 	// 2.5 Error if headers do not specify type as html
 	if !strings.Contains(resp.Header.Get("content-type"), "text/html") {
-		return []string{}, fmt.Errorf("content-type of %v did not contain text/html.\n", url)
+		return []string{}, fmt.Errorf("content-type of %v did not contain text/html", url)
 	}
 
 	// 3. Attempt to parse the HTML, return an error if there are any issues.
 	tokenizer := html.NewTokenizer(resp.Body)
+	foundUrls := []string{}
 
 	// TODO: Write tokenizer.
 
-	foundUrls = []string{}
-	return nil, foundUrls
+	return foundUrls, nil
 }
 
 func main() {
