@@ -1,11 +1,14 @@
 package main
 
+import "fmt"
+
 func main() {
 	crawler := NewCrawler(0, nil, nil)
-	links := []string{
-		"https://en.wikipedia.org/wiki/Main_Page",
-		"https://www.reddit.com/r/all/",
-	}
+	links, _ := crawler.CrawlWebpage("https://en.wikipedia.org/wiki/Main_Page")
 	crawler.CrawlWebpages(links...)
-	//fmt.Printf("%+v\n", crawler.PagesVisited)
+
+	// Print the keys of the pages the crawler visited
+	for key := range crawler.PagesVisited {
+		fmt.Println(key)
+	}
 }
