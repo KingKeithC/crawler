@@ -4,7 +4,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -82,15 +81,19 @@ func (c *Crawler) CrawlWebpage(url string) ([]string, error) {
 	return foundUrls, nil
 }
 
-func main() {
-	// Create and prime a crawler
-	crawler := NewCrawler(0, nil, nil)
-	links, err := crawler.CrawlWebpage("https://www.yourhtmlsource.com/myfirstsite/")
-	if err != nil {
-		fmt.Printf("Error Crawling webpage! %+v.", err)
-		os.Exit(1)
+// CrawlWebpages is a variadic function which calls CrawlWebpage for each URL passed as a parameter.
+// The function sums up the found hrefs and returns them.
+func (c *Crawler) CrawlWebpages(urls ...string) []string {
+	c.logger.Infof("Crawler %d: Crawling %d Urls.", c.ID, len(urls))
+	totalFoundUrls := []string{}
+	for _, url := range urls {
+		foundUrls, err := c.CrawlWebpage(url)
+		if err != nil {
+			c.logger.Warnf("Crawler %d: Caught Error %w for page %s, ignoring...", c.ID, err, url)
+		}
+		totalFoundUrls = append(totalFoundUrls, foundUrls...)
 	}
-	fmt.Printf("Found %v links on %v pages.", len(links), len(crawler.PagesVisited))
+	return totalFoundUrls
 }
 
 // parseNode Takes an HTML Node and returns a list
