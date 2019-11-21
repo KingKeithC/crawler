@@ -49,7 +49,7 @@ func NewCrawler(cID int, cLog *logrus.Logger, cHTTPClient *http.Client) *Crawler
 // urls it found on the page. It optionally returns an error if something
 // unexpected happens.
 func (c *Crawler) CrawlWebpage(url string) ([]string, error) {
-	c.logger.Infof("Crawler %d: Getting Page %v.", c.ID, url)
+	c.logger.Debugf("Crawler %d: Getting Page %v.", c.ID, url)
 
 	// 1. GET the web page and if we cannot connect return an error.
 	resp, err := c.httpClient.Get(url)
@@ -77,6 +77,7 @@ func (c *Crawler) CrawlWebpage(url string) ([]string, error) {
 	// 4. Gather all the hrefs add them to the PagesFound for this Crawler,
 	//    and finally return them.
 	foundUrls := parseNode(document)
+	c.logger.Infof("Crawler %d: Found %d hrefs on %s.", c.ID, len(foundUrls), url)
 	c.PagesVisited[url] = foundUrls
 	return foundUrls, nil
 }
@@ -131,7 +132,5 @@ func parseNode(firstNode *html.Node) []string {
 
 	// Begin by parsing this node
 	getNodeHrefs(firstNode)
-
-	fmt.Printf("Found %d hrefs in node.\n", len(hrefs))
 	return hrefs
 }
