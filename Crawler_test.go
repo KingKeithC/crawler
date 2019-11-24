@@ -25,6 +25,11 @@ func NewTestCrawler(cID int, cLog *logrus.Logger, fn RoundTripFunc) *Crawler {
 	return NewCrawler(cID, cLog, client)
 }
 
+// TestTest is a default testcase to make sure Golang is working.
+func TestTrue(t *testing.T) {
+	t.Log("This should always succeed.")
+}
+
 // TestCrawlWebpage
 func TestCrawlWebpage(t *testing.T) {
 	crawler := NewTestCrawler(0, nil, func(req *http.Request) *http.Response {
