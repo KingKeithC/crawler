@@ -54,8 +54,8 @@ func main() {
 	fmt.Printf("The Original Url was:\n")
 	fmt.Printf("%s\n\n", originalUrL)
 	fmt.Printf("After %d iterations:\n", iterations)
-	fmt.Printf("%8d: URLs were Visited, and\n", len(visited))
-	fmt.Printf("%8d: URLs are Unvisited.\n\n", len(unvisited))
+	fmt.Printf("%8d URLs were Visited, and\n", len(visited))
+	fmt.Printf("%8d URLs are Unvisited.\n\n", len(unvisited))
 	fmt.Printf("***********************************\n")
 
 }
