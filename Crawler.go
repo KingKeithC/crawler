@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -48,13 +49,13 @@ func NewCrawler(cID int, cLog *logrus.Logger, cHTTPClient *http.Client) *Crawler
 // CrawlWebpage gets the content of a web page and then returns a slice of,
 // urls it found on the page. It optionally returns an error if something
 // unexpected happens.
-func (c *Crawler) CrawlWebpage(url string) ([]string, error) {
-	c.logger.Debugf("Crawler %d: Getting Page %v.", c.ID, url)
+func (c *Crawler) CrawlWebpage(urlToVisit string) ([]string, error) {
+	c.logger.Debugf("Crawler %d: Getting Page %v.", c.ID, urlToVisit)
 
 	// 1. GET the web page and if we cannot connect return an error.
-	resp, err := c.httpClient.Get(url)
+	resp, err := c.httpClient.Get(urlToVisit)
 	if err != nil {
-		return []string{}, fmt.Errorf("error getting webpage %v, due to %w", url, err)
+		return []string{}, fmt.Errorf("error getting webpage %v, due to %w", urlToVisit, err)
 	}
 	defer resp.Body.Close()
 
@@ -65,21 +66,41 @@ func (c *Crawler) CrawlWebpage(url string) ([]string, error) {
 
 	// 2.5 Error if headers do not specify type as html
 	if !strings.Contains(resp.Header.Get("content-type"), "text/html") {
-		return []string{}, fmt.Errorf("content-type of %v did not contain text/html", url)
+		return []string{}, fmt.Errorf("content-type of %v did not contain text/html", urlToVisit)
 	}
 
 	// 3. Attempt to parse the HTML, return an error if there are any issues.
 	document, err := html.Parse(resp.Body)
 	if err != nil {
-		return []string{}, fmt.Errorf("could not parse HTML body from %v, got error %w", url, err)
+		return []string{}, fmt.Errorf("could not parse HTML body from %v, got error %w", urlToVisit, err)
 	}
 
 	// 4. Gather all the hrefs add them to the PagesFound for this Crawler,
 	//    and finally return them.
-	foundUrls := parseNode(document)
-	c.logger.Infof("Crawler %d: Found %d hrefs on %s.", c.ID, len(foundUrls), url)
-	c.PagesVisited[url] = foundUrls
-	return foundUrls, nil
+	foundURLs := parseNode(document)
+
+	validURLs := make([]string, 0, len(foundURLs))
+	for _, foundURL := range foundURLs {
+		// Check if URL is valid, log an error and continue if it is not
+		validURL, err := url.Parse(foundURL)
+		if err != nil {
+			c.logger.Debugf("Crawler %d: Found URL %s could not be parsed due to %w", c.ID, foundURL, err)
+			continue
+		}
+
+		// If the URL is non-absolute, continue as well
+		if !validURL.IsAbs() {
+			c.logger.Debugf("Crawler %d: Found URL %s is non-absolute.", c.ID, foundURL)
+			continue
+		}
+
+		// Append the URL, since there was no error
+		validURLs = append(validURLs, validURL.String())
+	}
+
+	c.logger.Infof("Crawler %d: Found %d/%d valid hrefs on %s.", c.ID, len(validURLs), len(foundURLs), urlToVisit)
+	c.PagesVisited[urlToVisit] = validURLs
+	return validURLs, nil
 }
 
 // CrawlWebpages is a variadic function which calls CrawlWebpage for each URL passed as a parameter.
@@ -99,8 +120,8 @@ func (c *Crawler) CrawlWebpages(urls ...string) []string {
 
 // CrawlNRecursively crawls a URL and then crawls all hrefs it found.
 // It repeats this pattern N times and returns a slice of hrefs visited and unvisited.
-func (c *Crawler) CrawlNRecursively(url string, n uint32) ([]string, []string) {
-	c.logger.Infof("Crawler %d: Crawling %s recursively for %d iterations.", c.ID, url, n)
+func (c *Crawler) CrawlNRecursively(urlToVisit string, n uint32) ([]string, []string) {
+	c.logger.Infof("Crawler %d: Crawling %s recursively for %d iterations.", c.ID, urlToVisit, n)
 
 	// Make our return variables as 25 times the iterations, as on average we get about 25
 	// hrefs when crawling any average page. **As if this writing I have no real evidence to back
@@ -111,23 +132,23 @@ func (c *Crawler) CrawlNRecursively(url string, n uint32) ([]string, []string) {
 	unvisitedUrls = make([]string, 0, 25*n)
 
 	// Add the first URL to the slice of unvisitedUrls
-	unvisitedUrls = append(unvisitedUrls, url)
+	unvisitedUrls = append(unvisitedUrls, urlToVisit)
 
 	// For n iterations
 	for i := uint32(0); i < n; i++ {
 		// Take the top URL to visit off the stack then update the stack to be everything else
-		urlToVisit := unvisitedUrls[i]
+		nextURL := unvisitedUrls[i]
 		unvisitedUrls = unvisitedUrls[1:]
 
 		// Crawl the page and log but ignore any errors.
-		found, err := c.CrawlWebpage(urlToVisit)
+		found, err := c.CrawlWebpage(nextURL)
 		if err != nil {
-			c.logger.Warnf("Crawler %d: URL %s returned error %w. Ignoring...", c.ID, urlToVisit, err)
+			c.logger.Warnf("Crawler %d: URL %s returned error %w. Ignoring...", c.ID, nextURL, err)
 		}
 
 		// Update the stack of visited URLs with this URL,
 		// and the stack of unvisited URLs with the URLs found.
-		visitedUrls = append(visitedUrls, urlToVisit)
+		visitedUrls = append(visitedUrls, nextURL)
 		unvisitedUrls = append(unvisitedUrls, found...)
 
 		// Return early if there are no URLs left to crawl.
