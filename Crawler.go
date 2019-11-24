@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"golang.org/x/net/html"
 
@@ -31,9 +32,11 @@ func NewCrawler(cID int, cLog *logrus.Logger, cHTTPClient *http.Client) *Crawler
 		cLog = logrus.New()
 	}
 
-	// Create a default client if none were passed
+	// Create a default client with a 10 second timeout if none were provided
 	if cHTTPClient == nil {
-		cHTTPClient = &http.Client{}
+		cHTTPClient = &http.Client{
+			Timeout: time.Second * 10,
+		}
 	}
 
 	// Return the final crawler
