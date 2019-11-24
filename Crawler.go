@@ -130,21 +130,20 @@ func (c *Crawler) CrawlWebpages(urls ...string) []string {
 	return totalFoundUrls
 }
 
-// CrawlNRecursively crawls a URL and then crawls all hrefs it found.
+// CrawlNRecursively crawls a slice of URLs and then crawls all hrefs it found.
 // It repeats this pattern N times and returns a slice of hrefs visited and unvisited.
-func (c *Crawler) CrawlNRecursively(urlToVisit string, n uint32) ([]string, []string) {
-	c.logger.Infof("Crawler %d: Crawling %s recursively for %d iterations.", c.ID, urlToVisit, n)
+func (c *Crawler) CrawlNRecursively(n uint32, URLsToVisit ...string) ([]string, []string) {
+	c.logger.Infof("Crawler %d: Crawling %d URLs recursively for %d iterations.", c.ID, len(URLsToVisit), n)
 
 	// Make our return variables as 25 times the iterations, as on average we get about 25
 	// hrefs when crawling any average page. **As if this writing I have no real evidence to back
 	// this up, however I intend to benchmark this and confirm the real number.
-
 	var visitedUrls, unvisitedUrls []string
 	visitedUrls = make([]string, 0, 25*n)
 	unvisitedUrls = make([]string, 0, 25*n)
 
-	// Add the first URL to the slice of unvisitedUrls
-	unvisitedUrls = append(unvisitedUrls, urlToVisit)
+	// Add the first URLs to the slice of unvisitedUrls
+	unvisitedUrls = append(unvisitedUrls, URLsToVisit...)
 
 	// For n iterations
 	for i := uint32(0); i < n; i++ {
