@@ -79,6 +79,7 @@ func (c *Crawler) CrawlWebpage(urlToVisit string) ([]string, error) {
 	//    and finally return them.
 	foundURLs := parseNode(document)
 
+	// Validate the URLs that were found, and add only the valid ones to a slice
 	validURLs := make([]string, 0, len(foundURLs))
 	for _, foundURL := range foundURLs {
 		// Check if URL is valid, log an error and continue if it is not
