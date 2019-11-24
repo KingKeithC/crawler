@@ -85,32 +85,34 @@ func (c *Crawler) CrawlWebpage(urlToVisit string) ([]string, error) {
 	// Validate the URLs that were found, and add only the valid ones to a slice
 	validURLs := make([]string, 0, len(foundURLs))
 	for _, foundURL := range foundURLs {
-		// Check if URL is valid, log an error and continue if it is not
-		validURL, err := url.Parse(foundURL)
-		if err != nil {
-			c.logger.Debugf("Crawler %d: Found URL %s could not be parsed due to %w", c.ID, foundURL, err)
-			continue
+		if validURL, ok := ValidateURL(foundURL); ok {
+			// Append the URL, since there was no error
+			validURLs = append(validURLs, validURL)
 		}
-
-		// If the URL is non-absolute, continue as well
-		if !validURL.IsAbs() {
-			c.logger.Debugf("Crawler %d: Found URL %s is non-absolute.", c.ID, foundURL)
-			continue
-		}
-
-		// If the scheme is not HTTP, or HTTPS, continue
-		if strings.ToLower(validURL.Scheme) != "http" && strings.ToLower(validURL.Scheme) != "https" {
-			c.logger.Debugf("Crawler %d: Found URL %s does not have scheme HTTP or HTTPS.", c.ID, foundURL)
-			continue
-		}
-
-		// Append the URL, since there was no error
-		validURLs = append(validURLs, validURL.String())
 	}
 
 	c.logger.Infof("Crawler %d: Found %d/%d valid hrefs on %s.", c.ID, len(validURLs), len(foundURLs), urlToVisit)
 	c.PagesVisited[urlToVisit] = validURLs
 	return validURLs, nil
+}
+
+// ValidateURL tests a url against a set of rules, if the URL is found to be
+// valid, the string of the URL and true are returned, otherwise an empty string and false are returned.
+func ValidateURL(u string) (string, bool) {
+	uParsed, err := url.Parse(u)
+	if err != nil {
+		return "", false
+	}
+
+	if !uParsed.IsAbs() {
+		return "", false
+	}
+
+	if uParsed.Scheme != "http" && uParsed.Scheme != "https" {
+		return "", false
+	}
+
+	return uParsed.String(), true
 }
 
 // CrawlWebpages is a variadic function which calls CrawlWebpage for each URL passed as a parameter.
