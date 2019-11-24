@@ -6,13 +6,17 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
+	log := logrus.New()
+
 	originalUrL := "https://twitter.com/"
 	var iterations uint32 = 250
 
-	crawler := NewCrawler(1, nil, nil)
+	crawler := NewCrawler(1, log, nil)
 	visited, unvisited := crawler.CrawlNRecursively(originalUrL, iterations)
 
 	visitedBytes := strSliceToByteSlice(visited)
