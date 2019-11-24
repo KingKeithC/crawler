@@ -97,6 +97,51 @@ func (c *Crawler) CrawlWebpages(urls ...string) []string {
 	return totalFoundUrls
 }
 
+// CrawlNRecursively crawls a URL and then crawls all hrefs it found.
+// It repeats this pattern N times and returns a slice of hrefs visited and unvisited.
+func (c *Crawler) CrawlNRecursively(url string, n uint32) ([]string, []string) {
+	c.logger.Infof("Crawler %d: Crawling %s recursively for %d iterations.", c.ID, url, n)
+
+	// Make our return variables as 25 times the iterations, as on average we get about 25
+	// hrefs when crawling any average page. **As if this writing I have no real evidence to back
+	// this up, however I intend to benchmark this and confirm the real number.
+
+	var visitedUrls, unvisitedUrls []string
+	visitedUrls = make([]string, 0, 25*n)
+	unvisitedUrls = make([]string, 0, 25*n)
+
+	// Add the first URL to the slice of unvisitedUrls
+	unvisitedUrls = append(unvisitedUrls, url)
+
+	// For n iterations
+	for i := uint32(0); i < n; i++ {
+		// Take the top URL to visit off the stack then update the stack to be everything else
+		urlToVisit := unvisitedUrls[i]
+		unvisitedUrls = unvisitedUrls[1:]
+
+		// Crawl the page and log but ignore any errors.
+		found, err := c.CrawlWebpage(urlToVisit)
+		if err != nil {
+			c.logger.Warnf("Crawler %d: URL %s returned error %w. Ignoring...", c.ID, urlToVisit, err)
+		}
+
+		// Update the stack of visited URLs with this URL,
+		// and the stack of unvisited URLs with the URLs found.
+		visitedUrls = append(visitedUrls, urlToVisit)
+		unvisitedUrls = append(unvisitedUrls, found...)
+
+		// Return early if there are no URLs left to crawl.
+		if len(unvisitedUrls) == 0 {
+			c.logger.Infof("Crawler %d: No URLs left to visit. Exiting...", c.ID)
+			return visitedUrls, unvisitedUrls
+		}
+	}
+
+	// All iterations done, return
+	c.logger.Infof("Crawler %d: All %d iterations complete. Exiting....", c.ID, n)
+	return visitedUrls, unvisitedUrls
+}
+
 // parseNode Takes an HTML Node and returns a list
 // of all hrefs found in a tags under that node
 func parseNode(firstNode *html.Node) []string {
