@@ -7,14 +7,32 @@ import (
 	"log"
 	"os"
 
+	"github.com/jessevdk/go-flags"
+
 	"github.com/sirupsen/logrus"
 )
 
+var opts struct {
+	Iterations int `short:"i" long:"iterations" default:"250"`
+	Positional struct {
+		PagesToVisit []string
+	} `positional-args:"yes" required:"yes"`
+}
+
+func init() {
+	// Parse the command line arguments
+	_, err := flags.Parse(&opts)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func main() {
 	log := logrus.New()
+	log.Infof("Running with these options %+v", opts)
 
-	originalUrL := "https://twitter.com/"
-	var iterations uint32 = 250
+	originalUrL := opts.Positional.PagesToVisit[0]
+	iterations := uint32(opts.Iterations)
 
 	crawler := NewCrawler(1, log, nil)
 	visited, unvisited := crawler.CrawlNRecursively(originalUrL, iterations)
