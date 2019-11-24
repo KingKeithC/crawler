@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 
 	"github.com/jessevdk/go-flags"
@@ -22,20 +21,24 @@ var opts struct {
 func init() {
 	// Parse the command line arguments
 	_, err := flags.Parse(&opts)
+
+	// If there was an error, but no Positional Arguments were Provided, log a warning and continue.
+	// Otherwise, log the error and exit.
 	if err != nil {
-		panic(err)
+		if len(opts.Positional.PagesToVisit) == 0 {
+			logrus.Errorf("No Pages to visit were provided!")
+		} else {
+			logrus.Fatalf("Error %w was logged when parsong the arguments.", err)
+		}
 	}
 }
 
 func main() {
 	log := logrus.New()
-	log.Infof("Running with these options %+v", opts)
-
-	originalUrL := opts.Positional.PagesToVisit[0]
-	iterations := uint32(opts.Iterations)
+	log.Debugf("Running with these options %+v", opts)
 
 	crawler := NewCrawler(1, log, nil)
-	visited, unvisited := crawler.CrawlNRecursively(originalUrL, iterations)
+	visited, unvisited := crawler.CrawlNRecursively(uint32(opts.Iterations), opts.Positional.PagesToVisit...)
 
 	visitedBytes := strSliceToByteSlice(visited)
 	unvisitedBytes := strSliceToByteSlice(unvisited)
@@ -51,13 +54,12 @@ func main() {
 	}
 
 	fmt.Printf("***********************************\n\n")
-	fmt.Printf("The Original Url was:\n")
-	fmt.Printf("%s\n\n", originalUrL)
-	fmt.Printf("After %d iterations:\n", iterations)
+	fmt.Printf("The Original Urls were:\n")
+	fmt.Printf("%v\n\n", opts.Positional.PagesToVisit)
+	fmt.Printf("After %d iterations:\n", opts.Iterations)
 	fmt.Printf("%8d URLs were Visited, and\n", len(visited))
 	fmt.Printf("%8d URLs are Unvisited.\n\n", len(unvisited))
 	fmt.Printf("***********************************\n")
-
 }
 
 func strSliceToByteSlice(strSlice []string) []byte {
@@ -74,7 +76,7 @@ func strSliceToByteSlice(strSlice []string) []byte {
 		// Write the string to the buffer, and check for errors
 		_, err := buf.WriteString(str)
 		if err != nil {
-			log.Fatalf("Error writing string %s to buffer %v", str, *buf)
+			panic("Error writing string to buffer!")
 		}
 	}
 
