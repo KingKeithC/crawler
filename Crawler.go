@@ -98,6 +98,12 @@ func (c *Crawler) CrawlWebpage(urlToVisit string) ([]string, error) {
 			continue
 		}
 
+		// If the scheme is not HTTP, or HTTPS, continue
+		if strings.ToLower(validURL.Scheme) != "http" && strings.ToLower(validURL.Scheme) != "https" {
+			c.logger.Debugf("Crawler %d: Found URL %s does not have scheme HTTP or HTTPS.", c.ID, foundURL)
+			continue
+		}
+
 		// Append the URL, since there was no error
 		validURLs = append(validURLs, validURL.String())
 	}
