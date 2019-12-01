@@ -2,7 +2,10 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"os"
+
+	"github.com/kingkeithc/crawler/dal"
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/sirupsen/logrus"
@@ -46,11 +49,15 @@ func init() {
 	}
 
 	log.Debugf("The arguments are: %+v", Args)
-	log.Infoln("Initialization Complete.")
+	log.Infoln("Main Initialized.")
 }
 
 func main() {
-	f := NewFetcher(nil)
+	// Initialize the Data Access Layer with the connection string and logger
+	constr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+		Args.DBHost, Args.DBUser, Args.DBPass, Args.DBName)
+	dal.Init(constr, log)
+	defer dal.DB.Close()
 
 	// Open the null file for writing
 	null, err := os.OpenFile(os.DevNull, os.O_WRONLY, os.ModePerm)
@@ -59,6 +66,7 @@ func main() {
 	}
 	defer null.Close()
 
+	f := NewFetcher(nil)
 	for _, seedURL := range Args.SeedURLs {
 		body, err := f.FetchWebpage(seedURL)
 		if err != nil {

@@ -1,20 +1,11 @@
 version: '3.7'
 
 services:
-  crawler:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
-    environment:
-      CRAWLER_DB_HOST: db
-      CRAWLER_DB_USER: crawler
-      CRAWLER_DB_PASS: 123ABC!@#
-      CRAWLER_DB_NAME: crawler
-      CRAWLER_LOGLEVEL: DEBUG
-    command: -u https://hub.docker.com/_/postgres -u https://www.google.ca/
   db:
     image: postgres:12.1
     environment:
       POSTGRES_PASSWORD: 123ABC!@#
       POSTGRES_USER: crawler
       POSTGRES_DB: crawler
+    ports:
+      - 5432:5432
