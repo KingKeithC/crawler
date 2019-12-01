@@ -10,20 +10,23 @@ import (
 	"time"
 )
 
-// ReqTimeout is the amount of time in seconds that we will wait for a request to complete before
-// stopping. It is passed to any the client of newly created Fetchers.
-var ReqTimeout = 10
+// DefaultFetcherClient is the http Client that newly created fetchers use
+var DefaultFetcherClient = &http.Client{Timeout: time.Duration(10) * time.Second}
 
 // Fetcher fetches webpages.
 type Fetcher struct {
 	client *http.Client
 }
 
-// NewFetcher initializes and returns a Fetcher.
-func NewFetcher() *Fetcher {
-	to := time.Duration(ReqTimeout) * time.Second
+// NewFetcher initializes and returns a Fetcher. If a value for fClient is provided, the
+// Fetcher will use that as a client. Otherwise, it will use the DefaultFetcherClient.
+func NewFetcher(fClient *http.Client) *Fetcher {
+	if fClient == nil {
+		fClient = DefaultFetcherClient
+	}
+
 	return &Fetcher{
-		client: &http.Client{Timeout: to},
+		client: fClient,
 	}
 }
 
