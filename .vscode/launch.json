@@ -5,42 +5,21 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug 1000 Iterations of Nascar",
+            "name": "Debug Crawler Wiki Page",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}",
-            "env": {},
+            "env": {
+                "CRAWLER_DB_HOST": "localhost",
+                "CRAWLER_DB_USER": "crawler",
+                "CRAWLER_DB_PASS": "123ABC!@#",
+                "CRAWLER_DB_NAME": "crawler",
+                "CRAWLER_LOGLEVEL": "DEBUG"
+            },
             "args": [
-                "/i",
-                "1000",
-                "https://en.wikipedia.org/wiki/2019_Monster_Energy_NASCAR_Cup_Series"
-            ]
-        },
-        {
-            "name": "Debug 100 Iterations of Simple Wikipedia",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}",
-            "env": {},
-            "args": [
-                "/i",
-                "100",
-                "https://simple.wikipedia.org/wiki/Main_Page"
-            ]
-        },
-        {
-            "name": "Debug 500 Iterations of Awesome Self Hosted",
-            "type": "go",
-            "request": "launch",
-            "mode": "debug",
-            "program": "${workspaceFolder}",
-            "env": {},
-            "args": [
-                "/i",
-                "500",
-                "https://github.com/awesome-selfhosted/awesome-selfhosted"
+                "-u",
+                "https://en.wikipedia.org/wiki/Web_crawler"
             ]
         }
     ]
