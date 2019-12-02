@@ -8,9 +8,8 @@ import (
 // Crawler given a set of seed pages crawls those pages searching for links.
 type Crawler struct {
 	ID            int
-	logger        *logrus.Logger
+	log           *logrus.Logger
 	numFetchers   int
-	fetchers      []*Fetcher
 	unvisitedURLs *chan string
 	visitedURLs   *chan string
 	running       bool
@@ -28,26 +27,27 @@ func NewCrawler(cID int, cLog *logrus.Logger) *Crawler {
 
 	c := &Crawler{
 		ID:            cID,
-		logger:        cLog,
+		log:           cLog,
 		numFetchers:   10,
-		fetchers:      []*Fetcher{},
 		unvisitedURLs: &unvisited,
 		visitedURLs:   &visited,
 		running:       false,
 	}
 
-	// Create the fetchers and add them to the crawler
-	for i := 0; i < c.numFetchers; i++ {
-		c.fetchers[i] = NewFetcher(nil)
-	}
-
-	log.Debugf("Created Crawler %+v", c)
+	c.log.Debugf("Created Crawler %+v", c)
 	return c
 }
 
 // AddURLs adds a slice of URLs to the unvisited slice
 func (c *Crawler) AddURLs(URLsToAdd ...string) {
 	for _, URLToAdd := range URLsToAdd {
+		c.log.Debugf("Adding URL %s to Crawler %d", URLToAdd, c.ID)
 		*c.unvisitedURLs <- URLToAdd
 	}
+}
+
+// Crawl is the main method of the Crawler.
+func (c *Crawler) Crawl() {
+	c.log.Infof("Crawler %d is now Crawling...", c.ID)
+
 }
