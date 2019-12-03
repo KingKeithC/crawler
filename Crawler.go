@@ -77,6 +77,13 @@ func (c *Crawler) AttemptScraping(i int, wg *sync.WaitGroup) {
 
 		// Add the results
 		c.log.Infof("Fetcher %d: Found %d URLs on %s", i, len(res.ValidURLs), res.URL)
+
+		// Add the found URLs to the unvisited channel
+		for _, URL := range res.ValidURLs {
+			c.unvisitedURLs <- URL
+		}
+
+		// Add the results to the visitedresults channel
 		c.visitedResults <- res
 	}
 }

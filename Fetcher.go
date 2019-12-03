@@ -112,25 +112,31 @@ func getBodyhrefs(body *io.ReadCloser) ([]string, error) {
 	hrefs := []string{}
 
 	// Create and launch a recursive function to parse the node tree.
-	var nodeParser func(*html.Node)
-	nodeParser = func(node *html.Node) {
-		// If its an element node, and an anchor tag
+	// Create an anonymous function to recursively parse each node
+	var getNodeHrefs func(*html.Node)
+	getNodeHrefs = func(node *html.Node) {
 		if node.Type == html.ElementNode && node.Data == "a" {
-			// Iterate through its attrubites
+			// Loop through the elements attributes, if one of them
+			// if an href, append the value of the href to the hrefs slice
+			// and break out of the for loop
 			for _, attr := range node.Attr {
-				// If its an href, and a valid URL, add its value to the found URLs
 				if attr.Key == "href" {
 					hrefs = append(hrefs, attr.Val)
+					break
 				}
 			}
 		}
 
-		// Parse the next node in the series
-		for next := node.FirstChild; next != nil; next = node.NextSibling {
-			nodeParser(next)
+		// Perform Depth-First recursive search, calling this function for each element found.
+		// Calls this function on the first child of this node, then when it eventually returns,
+		// it calls the function on the next sibling of the first child, then on each sibling thereafter.
+		for next := node.FirstChild; next != nil; next = next.NextSibling {
+			getNodeHrefs(next)
 		}
 	}
-	nodeParser(rootNode)
+
+	// Begin by parsing this node
+	getNodeHrefs(rootNode)
 
 	return hrefs, nil
 }
