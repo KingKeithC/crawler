@@ -1,9 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/kingkeithc/crawler/dal"
 
@@ -59,32 +59,10 @@ func main() {
 	dal.Init(constr, log)
 	defer dal.DB.Close()
 
-	// Open the null file for writing
-	null, err := os.OpenFile(os.DevNull, os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		log.Fatalf("could not open null for for writing")
-	}
-	defer null.Close()
-
-	f := NewFetcher(nil)
-	for _, seedURL := range Args.SeedURLs {
-		body, err := f.FetchWebpage(seedURL)
-		if err != nil {
-			log.Warnf("%v", err)
-			continue
-		}
-		defer (*body).Close()
-
-		// Create a reader for the body
-		read := bufio.NewReader(*body)
-
-		// Write the body to null
-		written, err := read.WriteTo(null)
-		if err != nil {
-			log.Fatalf("could not write to null file")
-		}
-
-		// Log the amount of bytes written
-		log.Infof("Wrote %d bytes to null from url %s", written, seedURL)
-	}
+	////////////////////////////////////
+	c := NewCrawler(0, log)
+	c.AddURLs(Args.SeedURLs...)
+	go c.CrawlForever()
+	time.Sleep(time.Duration(60) * time.Second)
+	c.Stop()
 }
