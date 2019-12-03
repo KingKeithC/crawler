@@ -13,7 +13,7 @@ import (
 )
 
 // DefaultFetcherClient is the http Client that newly created fetchers use
-var DefaultFetcherClient = &http.Client{Timeout: time.Duration(10) * time.Second}
+var DefaultFetcherClient = &http.Client{Timeout: time.Duration(30) * time.Second}
 
 // Fetcher fetches webpages.
 type Fetcher struct {

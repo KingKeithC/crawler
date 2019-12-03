@@ -18,6 +18,8 @@
                 "CRAWLER_LOGLEVEL": "DEBUG"
             },
             "args": [
+                "--loglevel",
+                "DEBUG",
                 "-u",
                 "https://en.wikipedia.org/wiki/Web_crawler"
             ]
