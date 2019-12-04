@@ -1,11 +1,11 @@
-package dal
+package main
 
 import (
 	"database/sql"
 
 	"github.com/sirupsen/logrus"
 
-	// Necessary for sql
+	// Necessary for SQL
 	_ "github.com/lib/pq"
 )
 
@@ -37,3 +37,6 @@ func Init(conStr string, tlog *logrus.Logger) {
 
 	log.Printf("DAL Initialized.")
 }
+
+// CreateSchema connects to the DB and ensures that the schema exists
+func CreateSchema()

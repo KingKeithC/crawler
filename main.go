@@ -50,13 +50,6 @@ func init() {
 }
 
 func main() {
-	// Initialize the Data Access Layer with the connection string and logger
-	//constr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-	//	Args.DBHost, Args.DBUser, Args.DBPass, Args.DBName)
-	//dal.Init(constr, log)
-	//defer dal.DB.Close()
-
-	////////////////////////////////////
 	c := NewCrawler(0, log)
 	c.AddURLs(Args.SeedURLs...)
 	go c.CrawlForever()
