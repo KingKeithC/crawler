@@ -67,5 +67,5 @@ func main() {
 	c.AddURLs(Args.SeedURLs...)
 
 	// Run the crawler for 60 seconds then stop
-	go c.CrawlForever()
+	c.CrawlForever()
 }
