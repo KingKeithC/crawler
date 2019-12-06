@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/sirupsen/logrus"
 )
 
@@ -98,39 +99,85 @@ func (c *Crawler) AttemptScraping(i int, wg *sync.WaitGroup) {
 func (c *Crawler) StoreQueued() error {
 	numVisited := len(c.visitedResults)
 	numUnvisited := len(c.unvisitedURLs)
-
-	c.log.Infof("Storing Queued URLs. There are currently %d UnvisitedURLs, and %d VisitedURLs queued.",
+	c.log.Warnf("Storing Queued: %d UnvisitedURLs, and %d VisitedURLs...",
 		numUnvisited, numVisited)
 
-	// Prepare the insert statement
-	stmt, err := c.db.Prepare(`INSERT INTO "urls" (url, visited) VALUES ($1, $2)`)
+	// Take numVisited URLs from the visitedResults channel, and put
+	// them into a slice.
+	visitedURLs := make([]string, numVisited)
+	for i := 0; i < numVisited; i++ {
+		u := <-c.visitedResults
+		visitedURLs = append(visitedURLs, u.URL)
+	}
+
+	// Take numUnvisited URLs from the unvisitedURLs channel, and put
+	// them into a slice.
+	unvisitedURLs := make([]string, numUnvisited)
+	for i := 0; i < numUnvisited; i++ {
+		u := <-c.unvisitedURLs
+		unvisitedURLs = append(unvisitedURLs, u)
+	}
+
+	// Insert the URL slices into the DB
+	if err := c.InsertURLSlice(visitedURLs, true); err != nil {
+		return fmt.Errorf("failed to insert visitedURLs slice into DB due to %v", err)
+	}
+	if err := c.InsertURLSlice(unvisitedURLs, false); err != nil {
+		return fmt.Errorf("failed to insert visitedURLs slice into DB due to %v", err)
+	}
+
+	return nil
+}
+
+// InsertURLSlice inserts a slice of URLs into the urls table
+func (c *Crawler) InsertURLSlice(URLs []string, visited bool) error {
+	c.log.Debugf("Inserting %d URLs into DB.", len(URLs))
+
+	// Create a transaction
+	tx, err := c.db.Begin()
 	if err != nil {
+		abortTx(tx)
+		return fmt.Errorf("error %v while beginning transaction", err)
+	}
+
+	// Prepare a statement for the transaction
+	stmt, err := tx.Prepare(pq.CopyIn("urls", "url", "visited"))
+	if err != nil {
+		abortTx(tx)
 		return fmt.Errorf("error %v while preparing statement", err)
 	}
-	defer stmt.Close()
 
-	// Insert each visitedResult into the DB
-	for i := 0; i < numVisited; i++ {
-		v := <-c.visitedResults
-
-		c.log.Debugf("Inserting Visited URL %s into DB.", v.URL)
-		_, err := stmt.Exec(v.URL, true)
+	// Insert a URL into the statement
+	for _, URL := range URLs {
+		_, err = stmt.Exec(URL, visited)
 		if err != nil {
-			return fmt.Errorf("error %v inserting into DB", err)
+			abortTx(tx)
+			return fmt.Errorf("error %v while executing insert statement", err)
 		}
 	}
 
-	// Insert each unvisitedURL into the DB
-	for i := 0; i < numUnvisited; i++ {
-		v := <-c.unvisitedURLs
-
-		c.log.Debugf("Inserting Unvisited URL %s into DB.", v)
-		_, err := stmt.Exec(v, false)
-		if err != nil {
-			return fmt.Errorf("error %v inserting into DB", err)
-		}
+	// Add a final execute to the statement
+	_, err = stmt.Exec()
+	if err != nil {
+		abortTx(tx)
+		return fmt.Errorf("error %v while executing final statement", err)
 	}
 
+	// Closed the statement
+	err = stmt.Close()
+	if err != nil {
+		abortTx(tx)
+		return fmt.Errorf("error %v while closing statement", err)
+	}
+
+	// Commit the transaction
+	err = tx.Commit()
+	if err != nil {
+		abortTx(tx)
+		return fmt.Errorf("error %v while committing transaction", err)
+	}
+
+	c.log.Debugf("URLInsert DB Transaction Completed Successfully.")
 	return nil
 }
 
@@ -158,7 +205,7 @@ func (c *Crawler) CrawlForever() {
 	}
 
 	// Create a function to call StoreQueued every 30 seconds.
-	timer := time.AfterFunc(time.Duration(30)*time.Second, func() {
+	timer := time.AfterFunc(time.Duration(10)*time.Second, func() {
 		err := c.StoreQueued()
 		if err != nil {
 			c.log.Fatalf("error %v while storing queued", err)
@@ -166,8 +213,13 @@ func (c *Crawler) CrawlForever() {
 	})
 	defer timer.Stop()
 
+	// Sleep for 3 seconds to let the scraping begin to happen
+	time.Sleep(time.Second)
+
 	// Wait for the fetchers to finish
 	c.log.Infof("Crawler %d: %d Fetchers launched. Now waiting for them to exit.", c.ID, c.numFetchers)
 	wg.Wait()
 	c.log.Infof("Crawler %d: All Fetchers finished. Continuing...", c.ID)
+
+	c.running = false
 }
