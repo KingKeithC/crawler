@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/sirupsen/logrus"
@@ -69,8 +68,4 @@ func main() {
 
 	// Run the crawler for 60 seconds then stop
 	go c.CrawlForever()
-	time.Sleep(time.Duration(60) * time.Second)
-	c.Stop()
-
-	log.Printf("Bye :)")
 }
