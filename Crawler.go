@@ -57,6 +57,7 @@ func (c *Crawler) AddURLs(URLsToAdd ...string) {
 // Stop stops a running crawler. It has no affect on a stopped crawler.
 func (c *Crawler) Stop() {
 	c.running = false
+	close(c.unvisitedURLs)
 }
 
 // AttemptScraping Makes an attempt to scrape
@@ -74,6 +75,7 @@ func (c *Crawler) AttemptScraping(i int, wg *sync.WaitGroup) {
 			return
 		}
 
+		// Scrape the page
 		c.log.Infof("Fetcher %d: Scraping Page %s", i, u)
 		res, err := f.ScrapePage(u)
 		if err != nil {
@@ -81,10 +83,8 @@ func (c *Crawler) AttemptScraping(i int, wg *sync.WaitGroup) {
 			continue
 		}
 
-		// Add the results
-		c.log.Infof("Fetcher %d: Found %d URLs on %s", i, len(res.ValidURLs), res.URL)
-
 		// Add the found URLs to the unvisited channel
+		c.log.Infof("Fetcher %d: Found %d URLs on %s", i, len(res.ValidURLs), res.URL)
 		for _, URL := range res.ValidURLs {
 			c.unvisitedURLs <- URL
 		}
@@ -94,16 +94,11 @@ func (c *Crawler) AttemptScraping(i int, wg *sync.WaitGroup) {
 	}
 }
 
-// StoreQueued Inserts all urls from the visitedResults channel into the urls channel.
-// It also Inserts all but numFetchers *2 URLs from the unvisitedURLs channel
+// StoreQueued Inserts all urls from the two channels into the DB.
 func (c *Crawler) StoreQueued() error {
-	numVisited := len(c.visitedResults)
-	numUnvisited := len(c.unvisitedURLs)
-	c.log.Warnf("Storing Queued: %d UnvisitedURLs, and %d VisitedURLs...",
-		numUnvisited, numVisited)
-
 	// Take numVisited URLs from the visitedResults channel, and put
 	// them into a slice.
+	numVisited := len(c.visitedResults)
 	visitedURLs := make([]string, numVisited)
 	for i := 0; i < numVisited; i++ {
 		u := <-c.visitedResults
@@ -112,6 +107,7 @@ func (c *Crawler) StoreQueued() error {
 
 	// Take numUnvisited URLs from the unvisitedURLs channel, and put
 	// them into a slice.
+	numUnvisited := len(c.unvisitedURLs)
 	unvisitedURLs := make([]string, numUnvisited)
 	for i := 0; i < numUnvisited; i++ {
 		u := <-c.unvisitedURLs
@@ -126,6 +122,8 @@ func (c *Crawler) StoreQueued() error {
 		return fmt.Errorf("failed to insert visitedURLs slice into DB due to %v", err)
 	}
 
+	c.log.Warnf("Stored: %d UnvisitedURLs, and %d VisitedURLs...",
+		numUnvisited, numVisited)
 	return nil
 }
 
@@ -149,6 +147,10 @@ func (c *Crawler) InsertURLSlice(URLs []string, visited bool) error {
 
 	// Insert a URL into the statement
 	for _, URL := range URLs {
+		if len(URL) == 0 {
+			continue
+		}
+
 		_, err = stmt.Exec(URL, visited)
 		if err != nil {
 			abortTx(tx)
