@@ -143,7 +143,7 @@ func getBodyhrefs(body *io.ReadCloser) ([]string, error) {
 
 // isValidURL takes a URL as a string, and returns a bool of whether it is valid.
 func isValidURL(u string) bool {
-	p, err := url.Parse(u)
+	p, err := url.ParseRequestURI(u)
 	if err != nil {
 		return false
 	}
