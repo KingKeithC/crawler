@@ -25,9 +25,7 @@ var Args struct {
 // log is the logger
 var log = logrus.New()
 
-func init() {
-	log.Infoln("Initializing the program.")
-
+func main() {
 	// Parse the arguments
 	if _, err := flags.Parse(&Args); err != nil {
 		os.Exit(1)
@@ -48,12 +46,8 @@ func init() {
 	default:
 		log.Fatalf("log level %s is not supported", Args.LogLevel)
 	}
-
 	log.Debugf("The arguments are: %+v", Args)
-	log.Infoln("Main Initialized.")
-}
 
-func main() {
 	// Initialize the DB
 	db, err := InitDB(fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		Args.DBHost, Args.DBPort, Args.DBUser, Args.DBPass, Args.DBName))
@@ -66,6 +60,6 @@ func main() {
 	c := NewCrawler(0, log, db)
 	c.AddURLs(Args.SeedURLs...)
 
-	// Run the crawler for 60 seconds then stop
+	// Run the crawler forever
 	c.CrawlForever()
 }

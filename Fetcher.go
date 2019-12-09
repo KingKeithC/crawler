@@ -143,11 +143,20 @@ func getBodyhrefs(body *io.ReadCloser) ([]string, error) {
 
 // isValidURL takes a URL as a string, and returns a bool of whether it is valid.
 func isValidURL(u string) bool {
-	parsed, err := url.Parse(u)
+	p, err := url.Parse(u)
 	if err != nil {
 		return false
 	}
-	return parsed.IsAbs()
+	if !(p.Scheme == "http" ||
+		p.Scheme == "https" ||
+		p.Scheme == "HTTP" ||
+		p.Scheme == "HTTPS") ||
+		p.Host == "" ||
+		p.Path == "" {
+		return false
+	}
+
+	return true
 }
 
 // isValidContentType takes a content-type header as a string, and returns a bool of whether it is valid.
