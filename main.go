@@ -57,9 +57,9 @@ func main() {
 	defer db.Close()
 
 	// Prepare the Crawler
-	c := NewCrawler(0, log, db)
+	c := NewCrawler(db)
 	c.AddURLs(Args.SeedURLs...)
 
 	// Run the crawler forever
-	c.CrawlForever()
+	c.Run()
 }

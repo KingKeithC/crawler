@@ -1,4 +1,4 @@
-// Fetcher is an object which can be used to fetch the contents of a webpage.
+// Scraper is a package which can be used to scrape the contents of a webpage.
 package main
 
 import (
