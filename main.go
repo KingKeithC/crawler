@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/sirupsen/logrus"
@@ -46,6 +47,7 @@ func main() {
 	default:
 		log.Fatalf("log level %s is not supported", Args.LogLevel)
 	}
+	fmt.Printf("The log level is: %s", log.GetLevel().String())
 	log.Debugf("The arguments are: %+v", Args)
 
 	// Initialize the DB
@@ -57,9 +59,11 @@ func main() {
 	defer db.Close()
 
 	// Prepare the Crawler
-	c := NewCrawler(db)
+	c := NewCrawler(db, 10)
 	c.AddURLs(Args.SeedURLs...)
 
 	// Run the crawler forever
-	c.Run()
+	go c.Run()
+
+	time.Sleep(time.Duration(20) * time.Second)
 }

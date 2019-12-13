@@ -4,8 +4,14 @@ services:
   db:
     image: postgres:12.1
     environment:
-      POSTGRES_PASSWORD: 123ABC!@#
+      POSTGRES_PASSWORD: 123ABC
       POSTGRES_USER: crawler
       POSTGRES_DB: crawler
     ports:
       - 5432:5432
+  db-web:
+    image: sosedoff/pgweb
+    environment:
+      DATABASE_URL: postgres://crawler:123ABC@db:5432/crawler?sslmode=disable
+    ports:
+      - 5433:8081

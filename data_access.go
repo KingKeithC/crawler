@@ -47,7 +47,6 @@ func InitDB(conStr string) (*sql.DB, error) {
 	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
-
 		abortTx(tx)
 		return nil, fmt.Errorf("error %v while commiting DB transaction", err)
 	}
