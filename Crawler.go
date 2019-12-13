@@ -8,153 +8,150 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	"github.com/sirupsen/logrus"
+)
+
+const (
+	// StateReady is when the crawler is created, but hasnt begun running yet.
+	StateReady = iota
+	// StateRunning is when the crawler is running.
+	StateRunning
+	// StateStopped is when the crawler has finished.
+	StateStopped
+
+	// ArtificialDelay is a delay between all requests
+	ArtificialDelay = time.Duration(7500) * time.Millisecond
 )
 
 // Crawler given a set of seed pages crawls those pages searching for links.
 type Crawler struct {
-	ID             int
-	log            *logrus.Logger
-	db             *sql.DB
-	numFetchers    int
-	unvisitedURLs  chan string
-	visitedResults chan *PageResults
-	running        bool
+	db        *sql.DB
+	workers   int
+	unvisited chan string
+	visited   chan *Scraping
+	stop      *sync.Once
+	state     int
 }
 
 // NewCrawler iniitializes and returns a crawler.
-func NewCrawler(cID int, cLog *logrus.Logger, db *sql.DB) *Crawler {
-	if cLog == nil {
-		cLog = logrus.New()
+func NewCrawler(db *sql.DB, workers int) (c *Crawler) {
+	c = &Crawler{
+		db:        db,
+		workers:   workers,
+		unvisited: make(chan string, 500),
+		visited:   make(chan *Scraping, 100),
+		stop:      &sync.Once{},
+		state:     StateReady,
 	}
-
-	// Create the channels
-	unvisited := make(chan string, 500)
-	visitedResults := make(chan *PageResults, 500)
-
-	c := &Crawler{
-		ID:             cID,
-		log:            cLog,
-		db:             db,
-		numFetchers:    10,
-		unvisitedURLs:  unvisited,
-		visitedResults: visitedResults,
-		running:        false,
-	}
-
-	c.log.Debugf("Created Crawler %+v", c)
-	return c
+	return
 }
 
-// AddURLs adds a slice of URLs to the unvisited slice
-func (c *Crawler) AddURLs(URLsToAdd ...string) {
-	for _, URLToAdd := range URLsToAdd {
-		c.log.Debugf("Adding URL %s to Crawler %d", URLToAdd, c.ID)
-		c.unvisitedURLs <- URLToAdd
+// State returns the state of the crawler.
+func (c *Crawler) State() int {
+	return c.state
+}
+
+// AddURLs adds the URLs to the unvisited channel
+func (c *Crawler) AddURLs(urls ...string) error {
+	if c.State() == StateStopped {
+		return fmt.Errorf("crawler is already stopped")
 	}
-}
-
-// Stop stops a running crawler. It has no affect on a stopped crawler.
-func (c *Crawler) Stop() {
-	c.running = false
-	close(c.unvisitedURLs)
-}
-
-// AttemptScraping Makes an attempt to scrape
-func (c *Crawler) AttemptScraping(i int, wg *sync.WaitGroup) {
-	// Add ourselves to the waitgroup, and defer its closure
-	wg.Add(1)
-	defer wg.Done()
-
-	f := NewFetcher(nil)
-
-	// Loop through the unvisitedURLs channel
-	for u := range c.unvisitedURLs {
-		if !c.running {
-			c.log.Warnf("Fetcher %d: We should no longer be running. Leaving...", i)
-			return
+	go func() {
+		for _, u := range urls {
+			if isValidURL(u) {
+				c.unvisited <- u
+			}
 		}
-
-		// Scrape the page
-		c.log.Infof("Fetcher %d: Scraping Page %s", i, u)
-		res, err := f.ScrapePage(u)
-		if err != nil {
-			c.log.Warnf("Fetcher %d: URL %s Received Error %v", i, u, err)
-			continue
-		}
-
-		// Add the found URLs to the unvisited channel
-		c.log.Infof("Fetcher %d: Found %d URLs on %s", i, len(res.ValidURLs), res.URL)
-		for _, URL := range res.ValidURLs {
-			c.unvisitedURLs <- URL
-		}
-
-		// Add the results to the visitedresults channel
-		c.visitedResults <- res
-	}
-}
-
-// StoreQueued Inserts all urls from the two channels into the DB.
-func (c *Crawler) StoreQueued() error {
-	// Take numVisited URLs from the visitedResults channel, and put
-	// them into a slice.
-	numVisited := len(c.visitedResults)
-	visitedURLs := make([]string, numVisited)
-	for i := 0; i < numVisited; i++ {
-		u := <-c.visitedResults
-		visitedURLs = append(visitedURLs, u.URL)
-	}
-
-	// Take numUnvisited URLs from the unvisitedURLs channel, and put
-	// them into a slice.
-	numUnvisited := len(c.unvisitedURLs)
-	unvisitedURLs := make([]string, numUnvisited)
-	for i := 0; i < numUnvisited; i++ {
-		u := <-c.unvisitedURLs
-		unvisitedURLs = append(unvisitedURLs, u)
-	}
-
-	// Insert the URL slices into the DB
-	if err := c.InsertURLSlice(visitedURLs, true); err != nil {
-		return fmt.Errorf("failed to insert visitedURLs slice into DB due to %v", err)
-	}
-	if err := c.InsertURLSlice(unvisitedURLs, false); err != nil {
-		return fmt.Errorf("failed to insert visitedURLs slice into DB due to %v", err)
-	}
-
-	c.log.Warnf("Stored: %d UnvisitedURLs, and %d VisitedURLs...",
-		numUnvisited, numVisited)
+	}()
 	return nil
 }
 
-// InsertURLSlice inserts a slice of URLs into the urls table
-func (c *Crawler) InsertURLSlice(URLs []string, visited bool) error {
-	c.log.Debugf("Inserting %d URLs into DB.", len(URLs))
+// Run ...
+func (c *Crawler) Run() {
+	if c.State() != StateReady {
+		return
+	}
+
+	// Set the new state
+	c.state = StateRunning
+
+	// Create a waitgroup
+	wg := &sync.WaitGroup{}
+
+	// Launch the workers
+	for i := 0; i < c.workers; i++ {
+		wg.Add(1)
+		go c.worker(wg)
+	}
+
+	// Launch the queue monitor
+	go c.monitor()
+
+	// Wait for them to complete
+	log.Infof("%d workers launched, now waiting while they crawl", c.workers)
+	wg.Wait()
+
+	c.flushQueuesToDB()
+
+	c.state = StateStopped
+	log.Infof("crawlers finished, goodbye :)")
+}
+
+func (c *Crawler) monitor() {
+	log.Infof("monitor launched")
+	for {
+		// Wait 5 seconds
+		time.Sleep(time.Duration(5) * time.Second)
+
+		if c.State() == StateStopped {
+			log.Infof("moitor returning due to StateStopped")
+			return
+		}
+
+		c.flushQueuesToDB()
+	}
+}
+
+func (c *Crawler) flushQueuesToDB() {
+	unvisitedSz := len(c.unvisited)
+	visitedSz := len(c.visited)
+
+	if unvisitedSz < 100 || visitedSz < 50 {
+		return
+	}
+
+	log.Warnf("inserting %d: unvisited, %d: visited URLs to DB", unvisitedSz, visitedSz)
 
 	// Create a transaction
 	tx, err := c.db.Begin()
 	if err != nil {
 		abortTx(tx)
-		return fmt.Errorf("error %v while beginning transaction", err)
+		log.Fatalf("error %v while beginning transaction", err)
 	}
 
 	// Prepare a statement for the transaction
 	stmt, err := tx.Prepare(pq.CopyIn("urls", "url", "visited"))
 	if err != nil {
 		abortTx(tx)
-		return fmt.Errorf("error %v while preparing statement", err)
+		log.Fatalf("error %v while preparing statement", err)
 	}
 
-	// Insert a URL into the statement
-	for _, URL := range URLs {
-		if len(URL) == 0 {
-			continue
-		}
-
-		_, err = stmt.Exec(URL, visited)
+	// Insert the unvisited URLs into the DB
+	for i := 0; i < unvisitedSz; i++ {
+		u := <-c.unvisited
+		_, err = stmt.Exec(u, false)
 		if err != nil {
 			abortTx(tx)
-			return fmt.Errorf("error %v while executing insert statement", err)
+			log.Fatalf("error %v while executing insert statement", err)
+		}
+	}
+
+	// Insert the visited URLs into the DB
+	for i := 0; i < visitedSz; i++ {
+		s := <-c.visited
+		_, err = stmt.Exec(s.URL, true)
+		if err != nil {
+			abortTx(tx)
+			log.Fatalf("error %v while executing insert statement", err)
 		}
 	}
 
@@ -162,66 +159,55 @@ func (c *Crawler) InsertURLSlice(URLs []string, visited bool) error {
 	_, err = stmt.Exec()
 	if err != nil {
 		abortTx(tx)
-		return fmt.Errorf("error %v while executing final statement", err)
+		log.Fatalf("error %v while executing final statement", err)
 	}
 
-	// Closed the statement
+	// Close the statement
 	err = stmt.Close()
 	if err != nil {
 		abortTx(tx)
-		return fmt.Errorf("error %v while closing statement", err)
+		log.Fatalf("error %v while closing statement", err)
 	}
 
 	// Commit the transaction
 	err = tx.Commit()
 	if err != nil {
 		abortTx(tx)
-		return fmt.Errorf("error %v while committing transaction", err)
+		log.Fatalf("error %v while committing transaction", err)
 	}
-
-	c.log.Debugf("URLInsert DB Transaction Completed Successfully.")
-	return nil
 }
 
-// CrawlForever crawls the channel of unscraped URLs, and a channel of page results. It retrieves a URL from the
-// unscraped URLs channel and scrapes the URL. If the scraped URL returns an error, the error is logged, otherwise the
-// returned PageResults are sent to the visitedResults channel.
-func (c *Crawler) CrawlForever() {
-	c.log.Debugf("Crawler %d: CrawlingForever...", c.ID)
-	// If we are already running, just return
-	if c.running {
-		c.log.Warnf("Crawler %d: CrawlForever called, but we're already running. Returning early...", c.ID)
-		return
-	}
+func (c *Crawler) worker(wg *sync.WaitGroup) {
+	defer wg.Done()
+	for {
+		// Sleep for a bit so we're not DOSing
+		time.Sleep(ArtificialDelay)
 
-	// Set running to true
-	c.running = true
-
-	// Make a wait group so we know when these guys are finshed
-	wg := &sync.WaitGroup{}
-
-	// Launch c.numFetchers goroutines to fetch a url from the channel, and place the results in the c.PageResults channel if there
-	// are any. If there was an error, it is logged.
-	for i := 0; i < c.numFetchers; i++ {
-		go c.AttemptScraping(i, wg)
-	}
-
-	// Create a function to call StoreQueued every 30 seconds.
-	timer := time.AfterFunc(time.Duration(10)*time.Second, func() {
-		err := c.StoreQueued()
-		if err != nil {
-			c.log.Fatalf("error %v while storing queued", err)
+		if c.State() == StateStopped {
+			log.Infof("worker returning due to StateStopped")
+			return
 		}
+		u, ok := <-c.unvisited
+		if !ok {
+			log.Infof("worker returning due to not ok receive")
+			return
+		}
+
+		s, err := Scrape(u)
+		if err != nil {
+			log.Infof("URL: %s, Returned: %v", u, err)
+		} else {
+			// Put the results into the channels
+			c.visited <- s
+			c.AddURLs(s.ValidHrefs...)
+			log.Infof("URL: %s, Returned: %d/%d Valid Hrefs", u, len(s.ValidHrefs), len(s.RawHrefs))
+		}
+	}
+}
+
+// Stop stops a running crawler. It has no affect on a stopped crawler.
+func (c *Crawler) Stop() {
+	c.stop.Do(func() {
+		c.state = StateStopped
 	})
-	defer timer.Stop()
-
-	// Sleep for 3 seconds to let the scraping begin to happen
-	time.Sleep(time.Second)
-
-	// Wait for the fetchers to finish
-	c.log.Infof("Crawler %d: %d Fetchers launched. Now waiting for them to exit.", c.ID, c.numFetchers)
-	wg.Wait()
-	c.log.Infof("Crawler %d: All Fetchers finished. Continuing...", c.ID)
-
-	c.running = false
 }
