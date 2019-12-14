@@ -53,7 +53,7 @@
                 "CRAWLER_LOGLEVEL": "INFO"
             },
             "args": [
-                "--delayMills",
+                "--delay-mills",
                 "7500",
                 "-u",
                 "https://en.wikipedia.org/wiki/Web_crawler"
@@ -73,7 +73,7 @@
                 "CRAWLER_LOGLEVEL": "WARN"
             },
             "args": [
-                "--delayMills",
+                "--delay-mills",
                 "7500",
                 "-u",
                 "https://github.com/awesome-selfhosted/awesome-selfhosted"
