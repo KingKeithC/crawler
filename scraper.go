@@ -37,7 +37,7 @@ func Scrape(u string) (s *Scraping, err error) {
 	defer resp.Body.Close()
 
 	// Check that the status is in the 200s
-	if resp.StatusCode < 200 && resp.StatusCode >= 300 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		err = fmt.Errorf("received status code %d getting url %s", resp.StatusCode, u)
 		return
 	}
@@ -56,14 +56,9 @@ func Scrape(u string) (s *Scraping, err error) {
 		return
 	}
 
-	// Get all the hrefs from the body
+	// Get all the hrefs from the body, and
+	// make a separate slice of valid hrefs.
 	hrefs := getBodyhrefs(rootNode)
-	if err != nil {
-		err = fmt.Errorf("error %v getting hrefs from body", err)
-		return
-	}
-
-	// Make a separate slice of valid hrefs
 	validHrefs := []string{}
 	for _, href := range hrefs {
 		if isValidURL(href) {
