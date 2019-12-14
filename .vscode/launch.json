@@ -76,7 +76,7 @@
                 "--delayMills",
                 "7500",
                 "-u",
-                "https://en.wikipedia.org/wiki/Web_crawler"
+                "https://github.com/awesome-selfhosted/awesome-selfhosted"
             ]
         }
     ]
