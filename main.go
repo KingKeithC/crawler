@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/sirupsen/logrus"
@@ -58,12 +57,8 @@ func main() {
 	}
 	defer db.Close()
 
-	// Prepare the Crawler
+	// Run a Crawler
 	c := NewCrawler(db, 10)
 	c.AddURLs(Args.SeedURLs...)
-
-	// Run the crawler forever
-	go c.Run()
-
-	time.Sleep(time.Duration(20) * time.Second)
+	c.Run()
 }
