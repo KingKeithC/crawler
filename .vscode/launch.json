@@ -18,8 +18,6 @@
                 "CRAWLER_LOGLEVEL": "INFO"
             },
             "args": [
-                "--loglevel",
-                "DEBUG",
                 "-u",
                 "https://en.wikipedia.org/wiki/Web_crawler"
             ]
@@ -38,8 +36,6 @@
                 "CRAWLER_LOGLEVEL": "WARN"
             },
             "args": [
-                "--loglevel",
-                "DEBUG",
                 "-u",
                 "https://en.wikipedia.org/wiki/Web_crawler"
             ]
