@@ -17,9 +17,6 @@ const (
 	StateRunning
 	// StateStopped is when the crawler has finished.
 	StateStopped
-
-	// ArtificialDelay is a delay between all requests
-	ArtificialDelay = time.Duration(7500) * time.Millisecond
 )
 
 // Crawler given a set of seed pages crawls those pages searching for links.
@@ -30,17 +27,19 @@ type Crawler struct {
 	visited   chan *Scraping
 	stop      *sync.Once
 	state     int
+	delay     int
 }
 
 // NewCrawler iniitializes and returns a crawler.
-func NewCrawler(db *sql.DB, workers int) (c *Crawler) {
+func NewCrawler(db *sql.DB, workers int, delay int) (c *Crawler) {
 	c = &Crawler{
 		db:        db,
 		workers:   workers,
-		unvisited: make(chan string, 500),
+		unvisited: make(chan string, 1000),
 		visited:   make(chan *Scraping, 100),
 		stop:      &sync.Once{},
 		state:     StateReady,
+		delay:     delay,
 	}
 	return
 }
@@ -181,7 +180,9 @@ func (c *Crawler) worker(wg *sync.WaitGroup) {
 	defer wg.Done()
 	for {
 		// Sleep for a bit so we're not DOSing
-		time.Sleep(ArtificialDelay)
+		if c.delay > 0 {
+			time.Sleep(time.Duration(c.delay) * time.Millisecond)
+		}
 
 		if c.State() == StateStopped {
 			log.Infof("worker returning due to StateStopped")
