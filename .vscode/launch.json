@@ -39,6 +39,45 @@
                 "-u",
                 "https://en.wikipedia.org/wiki/Web_crawler"
             ]
+        },        {
+            "name": "Debug Crawler Wiki Page Long Delay",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}",
+            "env": {
+                "CRAWLER_DB_HOST": "localhost",
+                "CRAWLER_DB_USER": "crawler",
+                "CRAWLER_DB_PASS": "123ABC",
+                "CRAWLER_DB_NAME": "crawler",
+                "CRAWLER_LOGLEVEL": "INFO"
+            },
+            "args": [
+                "--delayMills",
+                "7500",
+                "-u",
+                "https://en.wikipedia.org/wiki/Web_crawler"
+            ]
+        },
+        {
+            "name": "Warn Crawler Wiki Page Long Delay",
+            "type": "go",
+            "request": "launch",
+            "mode": "debug",
+            "program": "${workspaceFolder}",
+            "env": {
+                "CRAWLER_DB_HOST": "localhost",
+                "CRAWLER_DB_USER": "crawler",
+                "CRAWLER_DB_PASS": "123ABC",
+                "CRAWLER_DB_NAME": "crawler",
+                "CRAWLER_LOGLEVEL": "WARN"
+            },
+            "args": [
+                "--delayMills",
+                "7500",
+                "-u",
+                "https://en.wikipedia.org/wiki/Web_crawler"
+            ]
         }
     ]
 }

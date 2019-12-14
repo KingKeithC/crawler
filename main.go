@@ -13,13 +13,14 @@ import (
 
 // Args are the command line arguments passed to the program.
 var Args struct {
-	DBHost   string   `long:"dbHost" env:"CRAWLER_DB_HOST" default:"localhost" description:"The hostname of the DB server."`
-	DBPort   string   `long:"dbPort" env:"CRAWLER_DB_PORT" default:"5432" description:"The port of the DB server."`
-	DBUser   string   `long:"dbUser" env:"CRAWLER_DB_USER" default:"crawler" description:"The username to connect to the DB with."`
-	DBPass   string   `long:"dbPass" env:"CRAWLER_DB_PASS" default:"" description:"The password to connect to the DB with."`
-	DBName   string   `long:"dbName" env:"CRAWLER_DB_NAME" default:"crawler" description:"The DB name to connect to."`
-	SeedURLs []string `long:"seedURLs" short:"u" description:"The initial seed URLs to crawl." required:"true"`
-	LogLevel string   `long:"loglevel" env:"CRAWLER_LOGLEVEL" short:"l" description:"The log level of the program." choice:"FATAL" choice:"ERROR" choice:"WARN" choice:"INFO" choice:"DEBUG" default:"INFO"`
+	DBHost     string   `long:"dbHost" env:"CRAWLER_DB_HOST" default:"localhost" description:"The hostname of the DB server."`
+	DBPort     string   `long:"dbPort" env:"CRAWLER_DB_PORT" default:"5432" description:"The port of the DB server."`
+	DBUser     string   `long:"dbUser" env:"CRAWLER_DB_USER" default:"crawler" description:"The username to connect to the DB with."`
+	DBPass     string   `long:"dbPass" env:"CRAWLER_DB_PASS" default:"" description:"The password to connect to the DB with."`
+	DBName     string   `long:"dbName" env:"CRAWLER_DB_NAME" default:"crawler" description:"The DB name to connect to."`
+	SeedURLs   []string `long:"seedURLs" short:"u" description:"The initial seed URLs to crawl." required:"true"`
+	LogLevel   string   `long:"loglevel" env:"CRAWLER_LOGLEVEL" short:"l" description:"The log level of the program." choice:"FATAL" choice:"ERROR" choice:"WARN" choice:"INFO" choice:"DEBUG" default:"INFO"`
+	DelayMills int      `long:"delayMills" env:"CRAWLER_DELAY_MILLS" description:"The milliseconds between scrapes."`
 }
 
 // log is the logger
@@ -58,7 +59,7 @@ func main() {
 	defer db.Close()
 
 	// Run a Crawler
-	c := NewCrawler(db, 10)
+	c := NewCrawler(db, 10, Args.DelayMills)
 	c.AddURLs(Args.SeedURLs...)
 	c.Run()
 }
