@@ -35,7 +35,7 @@ func NewCrawler(db *sql.DB, workers int, delay int) (c *Crawler) {
 	c = &Crawler{
 		db:        db,
 		workers:   workers,
-		unvisited: make(chan string, 500),
+		unvisited: make(chan string, 1000),
 		visited:   make(chan *Scraping, 100),
 		stop:      &sync.Once{},
 		state:     StateReady,
